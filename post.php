@@ -35,9 +35,13 @@ class Post{
     public $g_ts_adress;
     public $g_skype_adress;
     public $g_group_platform;
+    public $g_platform;
     public $g_categories;
     public $g_member_count;
+    public $g_situation;
     public $platform;
+    public $m_id;
+
 
     public function __construct($db){
         $this->conn = $db;
@@ -126,6 +130,7 @@ class Post{
          p.skype_adress,
          p.group_platform,
          p.categories,
+         p.situation,
          p.member_count FROM GROUPS p WHERE p.id = '$f_id'";
 
         $stmt = $this->conn->prepare($query);
@@ -150,6 +155,7 @@ class Post{
         $this->g_skype_adress = $gr['skype_adress'];
         $this->g_group_platform = $gr['group_platform'];
         $this->g_categories = $gr['categories'];
+        $this->g_situation = $gr['situation'];
         $this->g_member_count = $gr['member_count'];
         
         return $stmt;
@@ -171,6 +177,18 @@ class Post{
         printf("Error %s. \n", $stmt->error);
         return false;
     }
+
+    public function create_group($g_title,$g_sub_title,$g_creator_id,$g_platform,$g_categories,$g_email,$g_telegram,$g_dc_adress,$g_skype_adress,$g_insta_adress){
+        $query = "INSERT INTO `GROUPS` (`id`, `title`, `sub_title`, `creator_id`, `description`, `email`, `country`, `city`, `telegram`, `dc_adress`, `insta_adress`, `ts_adress`, `skype_adress`, `group_platform`, `categories`, `member_count`) 
+        VALUES (NULL, '$g_title', '$g_sub_title', '$g_creator_id', '', '$g_email', '', '', '$g_telegram', '$g_dc_adress', '$g_insta_adress', '', '$g_skype_adress', '$g_platform', '$g_categories', '1')";
+            
+            $insert_group = $this->conn->prepare($query);
+            $row = $insert_group->fetch(PDO::FETCH_ASSOC);
+            $insert_group->execute();
+            return $insert_group;
+
+    }
+
     public function update(){
         //create query
         $query = 'UPDATE CATEGORY SET title= :title WHERE id = :id';
@@ -262,8 +280,8 @@ class Post{
         $stmt->close();
     }
     public function fetch_group($g_id){
-        $query = "SELECT p.id
-        FROM GROUPS_MEMBERS p WHERE p.m1 = '$g_id' OR p.m2 = '$g_id' OR p.m3 = '$g_id' OR p.m4 = '$g_id' OR p.m5 = '$g_id'";
+        $query = "SELECT p.group_id
+        FROM GROUPS_MEMBERS p WHERE p.m1 = '$g_id'";
 
         $stmt = $this->conn->prepare($query);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -273,7 +291,7 @@ class Post{
     }
 
     public function feed($f_category){
-        $query = "SELECT * from POST p WHERE p.category = '$f_category'";
+        $query = "SELECT * from POST p WHERE p.category = '$f_category' AND p.situation = '1'";
 
         $stmt = $this->conn->prepare($query);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -305,12 +323,132 @@ class Post{
         p.mobile_number,
         p.email,
         p.dc_adress,
-        p.has_approved_terms FROM USER p WHERE p.id IN ((SELECT g.m1 FROM GROUPS_MEMBERS g WHERE g.id = '$f_mem'),(SELECT g.m2 FROM GROUPS_MEMBERS g WHERE g.id = '$f_mem'),(SELECT g.m3 FROM GROUPS_MEMBERS g WHERE g.id = '$f_mem'),(SELECT g.m4 FROM GROUPS_MEMBERS g WHERE g.id = '$f_mem'),(SELECT g.m5 FROM GROUPS_MEMBERS g WHERE g.id = '$f_mem'))";
+        p.has_approved_terms FROM USER p WHERE p.id IN ((SELECT g.m1 FROM GROUPS_MEMBERS g WHERE g.group_id = '$f_mem'))";
 
         $stmt = $this->conn->prepare($query);
+        $col = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $stmt->execute();
+        return $stmt;
+    }
+    public function fetch_pending_members($f_mem){
+        $query = "SELECT
+        p.id,
+        p.first_name,
+        p.last_name,
+        p.nick_name,
+        p.gender,
+        p.country,
+        p.city,
+        p.bio,
+        p.mobile_number,
+        p.email,
+        p.dc_adress,
+        p.has_approved_terms FROM USER p WHERE p.id IN (SELECT g.m1 FROM PENDING_MEMBERS g WHERE g.group_id = '$f_mem')";
+
+        $stmt = $this->conn->prepare($query);
+        $pen = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $stmt->execute();
+        return $stmt;
+    }
+    
+    // DELETE FUNCTIONS
+
+    public function delete_group($g_id){
+        
+        $query = "DELETE FROM GROUPS WHERE id = '$g_id'";
+        
+        $stmt = $this->conn->prepare($query);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute();
+
+        return $stmt;
+    }
+
+    public function update_group($g_id,$g_title,$g_sub_title,$g_member_count,$g_situation,$g_country,$g_city,$g_ts_adress,$g_description,$g_creator_id,$g_platform,$g_categories,$g_email,$g_telegram,$g_dc_adress,$g_skype_adress,$g_insta_adress){
+        //create query
+        $query = "UPDATE
+        `GROUPS`
+        SET `title` = '$g_title',
+        `sub_title` = '$g_sub_title', 
+        `description` = '$g_description',
+        `email` = '$g_email', 
+        `country` = '$g_country', 
+        `city` = '$g_city',
+        `telegram` = '$g_telegram',
+        `dc_adress` = '$g_dc_adress',
+        `insta_adress` = '$g_insta_adress', 
+        `ts_adress` = '$g_ts_adress',
+        `skype_adress` = '$g_skype_adress', 
+        `group_platform` = '$g_group_platform',
+        `categories` = '$g_categories',
+        `member_count` = '$g_member_count',
+        `situation` = '$g_situation' WHERE `id` = '$g_id'";
+
+        //prepare statement
+        $stmt = $this->conn->prepare($query);
+        //clean data
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $stmt->execute();
+        return $stmt;
+    }
+
+    public function update_post($g_id,$g_situation){
+        //create query
+        $query = "UPDATE
+        `GROUPS`
+        SET `situation` = '$g_situation' WHERE `id` = '$g_id'";
+        //prepare statement
+        $stmt = $this->conn->prepare($query);
+        //clean data
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        echo "$g_id";
+        echo "$g_situation";
+        $stmt->execute();
+        return $stmt;
+    }
+
+    public function add_pending($g_id,$m_id){
+        $query = "INSERT INTO `PENDING_MEMBERS` (`id`, `group_id`, `m1`) VALUES (NULL, '$g_id', '$m_id')";
+        
+        $stmt = $this->conn->prepare($query);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute();
+
+        return $stmt;
+    }
+
+    public function delete_pending($g_id,$m_id){
+        
+        $query = "DELETE FROM PENDING_MEMBERS WHERE group_id = '$g_id' AND m1 = '$m_id'";
+        
+        $stmt = $this->conn->prepare($query);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute();
+
+        return $stmt;
+    }
+
+    public function add_group_member($g_id,$m_id){
+        $query = "INSERT INTO `GROUPS_MEMBERS` (`id`, `group_id`, `m1`) VALUES (NULL, '$g_id', '$m_id')";
+        
+        $stmt = $this->conn->prepare($query);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute();
+
+        return $stmt;
+    }
+
+    public function delete_group_member($g_id,$m_id){
+        
+        $query = "DELETE FROM GROUPS_MEMBERS WHERE group_id = '$g_id' AND m1 = '$m_id'";
+        
+        $stmt = $this->conn->prepare($query);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute();
+
         return $stmt;
     }
 }
